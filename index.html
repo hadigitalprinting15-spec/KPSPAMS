@@ -978,7 +978,7 @@
             });
 
             document.getElementById('totalKasPemasukan').innerText = `Rp ${totalKas.toLocaleString('id-ID')}`;
-            document.getElementById('totalSisaTunggakan').innerText = `Rp ${totalTunggakan.toLocaleString('id-ID')}`;
+            document.getElementById('totalSisaTunggakan').innerText = `Rp ${totalSisaTunggakan ? totalSisaTunggakan.toLocaleString('id-ID') : totalTunggakan.toLocaleString('id-ID')}`;
         }
 
         function updateLandingTarifDisplay() {
@@ -1049,30 +1049,50 @@
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // FUNGSI CEK TAGIHAN DENGAN RINCIAN DETAIL TIAP BULAN (JANUARI, FEBRUARI, DST)
+        // FUNGSI PINTAR CEK TAGIHAN PUBLIK (EKSTRAKSI ID SR DARI STRUKTUR TEKS LENGKAP)
         window.cekTagihanPublik = function(queryOverride = null) {
-            const query = queryOverride ? queryOverride.trim().toLowerCase() : document.getElementById('searchIdSr').value.trim().toLowerCase();
+            const rawQuery = queryOverride ? queryOverride.trim() : document.getElementById('searchIdSr').value.trim();
             const resultBox = document.getElementById('resultTagihan');
             resultBox.classList.remove('hidden');
 
-            if (!query) {
+            if (!rawQuery) {
                 resultBox.innerHTML = `<p class="text-rose-400 font-semibold text-center">Silakan masukkan ID SR atau Nama Pelanggan!</p>`;
                 return;
             }
 
-            let searchTarget = query;
-            if (query.includes("id:")) {
-                const parts = query.split("|");
-                for (let part of parts) {
-                    if (part.startsWith("id:")) {
-                        searchTarget = part.replace("id:", "").trim();
-                    }
-                }
+            // Ekstraksi ID SR menggunakan regex (misal: SR-001, SR-01, SR-1) dari gabungan teks QR
+            let extractedSr = null;
+            const srMatch = rawQuery.match(/SR-\d+/i);
+            if (srMatch) {
+                extractedSr = srMatch[0].toLowerCase();
             }
 
-            const found = window.pelangganData.find(p => p.id.toLowerCase().includes(searchTarget) || p.nama.toLowerCase().includes(searchTarget));
+            // Ekstraksi Nama jika ada teks "Nama: ..."
+            let extractedNama = null;
+            const namaMatch = rawQuery.match(/Nama:\s*([^\n\r]+)/i);
+            if (namaMatch) {
+                extractedNama = namaMatch[1].trim().toLowerCase();
+            }
+
+            const queryLower = rawQuery.toLowerCase();
+
+            // Cari pelanggan berdasarkan ID SR ter-ekstraksi, ID langsung, atau Nama
+            const found = window.pelangganData.find(p => {
+                const pId = p.id.toLowerCase();
+                const pNama = p.nama.toLowerCase();
+
+                if (extractedSr && pId === extractedSr) return true;
+                if (extractedNama && pNama.includes(extractedNama)) return true;
+                if (pId.includes(queryLower)) return true;
+                if (pNama.includes(queryLower)) return true;
+
+                return false;
+            });
 
             if (found) {
+                // Tampilkan ID SR ringkas di input field agar rapi
+                document.getElementById('searchIdSr').value = `${found.id} - ${found.nama}`;
+
                 const isLunas = found.statusBayar === "Lunas";
                 const pemakaian = (found.meterIni || 0) - (found.meterLalu || 0);
                 const tagihanBulanIni = found.tagihanBulanIni || (found.tagihan - (found.tunggakanLalu || 0)) || 0;
@@ -1174,7 +1194,7 @@
             }
         }
 
-        // FITUR SCAN QR CODE MENGGUNAKAN KAMERA
+        // FITUR SCAN QR CODE MENGGUNAKAN KAMERA (OTOMATIS LANGSUNG MENAMPILKAN STATUS)
         window.openScannerModal = function() {
             document.getElementById('modalScanner').classList.remove('hidden');
             if (!html5QrCode) {
@@ -1185,7 +1205,6 @@
                 { fps: 10, qrbox: { width: 220, height: 220 } },
                 (decodedText) => {
                     closeScannerModal();
-                    document.getElementById('searchIdSr').value = decodedText;
                     cekTagihanPublik(decodedText);
                 },
                 (errorMessage) => {

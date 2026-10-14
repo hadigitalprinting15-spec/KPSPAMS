@@ -36,25 +36,21 @@
 
     <!-- CSS LAYOUT CETAK STRUK UNTUK PRINTER LOKAL (CANON/EPSON/THERMAL) -->
     <style>
-        /* Elemen Struk Sembunyi Secara Default di Layar Web */
         #thermalReceiptPrintArea {
             display: none;
         }
 
-        /* PERBAIKAN CSS CETAK SANGAT PRESISI */
         @media print {
-            /* Sembunyikan elemen Web biasa */
             header, footer, #publicView, #adminView, .fixed, .modal, #modalScanner, #modalQr, #modalPembayaran, #modalLogin, #modalForgot, #modalPelanggan {
                 display: none !important;
             }
 
-            /* Tampilkan hanya area Struk */
             #thermalReceiptPrintArea {
                 display: block !important;
                 position: absolute !important;
                 left: 0 !important;
                 top: 0 !important;
-                width: 78mm !important; /* Pas untuk Printer Thermal 80mm & Printer Lokal Canon A4 */
+                width: 78mm !important;
                 max-width: 100% !important;
                 font-family: 'Courier New', Courier, monospace !important;
                 font-size: 11px !important;
@@ -169,7 +165,7 @@
                                 <div class="grid grid-cols-2 gap-4">
                                     <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
                                         <p class="text-xs text-slate-400 mb-1">Debet Air Rata-rata</p>
-                                        <p class="text-base sm:text-lg font-bold text-white">4.8 L/detik</p>
+                                        <p class="text-base sm:text-lg font-bold text-white" id="displayDebetAir">0 L/detik</p>
                                     </div>
                                     <div class="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50">
                                         <p class="text-xs text-slate-400 mb-1">Kapasitas Reservoir</p>
@@ -956,6 +952,7 @@
                 renderMeterOptions();
                 renderPembayaranTable();
                 updateFinancialMetrics();
+                hitungDebetAirOtomatis(); // Kalkulasi debet air otomatis
                 previewLaporanBulanan();
             });
 
@@ -968,7 +965,7 @@
             });
         });
 
-        // TAMPILAN WAKTU AUTOMATIS DENGAN FORMAT 24 JAM
+        // WAKTU AUTOMATIS FORMAT 24 JAM
         function displayAutoDateTime() {
             const today = new Date();
             const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -978,6 +975,28 @@
             const el = document.getElementById('currentDateTime');
             if (el) {
                 el.innerText = `${dateString} | ${timeString} WIB`;
+            }
+        }
+
+        // FUNGSI KALKULASI DEBET AIR RATA-RATA OTOMATIS BERDASARKAN PEMAKAIAN (m³)
+        function hitungDebetAirOtomatis() {
+            let totalM3BulanIni = 0;
+
+            window.pelangganData.forEach(p => {
+                const pemakaian = (p.meterIni || 0) - (p.meterLalu || 0);
+                if (pemakaian > 0) {
+                    totalM3BulanIni += pemakaian;
+                }
+            });
+
+            // Konversi m3 per bulan ke Liter per detik (30 hari x 86.400 detik = 2.592.000 detik)
+            const totalLiter = totalM3BulanIni * 1000;
+            const detikDalamSebulan = 30 * 24 * 3600; 
+            const debetLPS = (totalLiter / detikDalamSebulan).toFixed(2);
+
+            const el = document.getElementById('displayDebetAir');
+            if (el) {
+                el.innerText = `${debetLPS} L/detik`;
             }
         }
 
@@ -1761,6 +1780,7 @@
 
             updateFinancialMetrics();
             renderPembayaranTable();
+            hitungDebetAirOtomatis();
             alert(`Tagihan (${bulanTagihan}) untuk ${found.nama} berhasil dicatat:\n- Tagihan Bulan Ini: Rp ${tagihanBulanIni.toLocaleString('id-ID')}\n- Total Keseluruhan: Rp ${totalAkumulasi.toLocaleString('id-ID')}`);
         }
 
@@ -1801,7 +1821,7 @@
             });
         }
 
-        // FUNGSI CETAK STRUK PRESISI DENGAN JAM FORMAT 24 JAM
+        // FUNGSI CETAK STRUK THERMAL / LOKAL DENGAN JAM 24-JAM
         window.cetakStrukThermal = function(docId) {
             const p = window.pelangganData.find(item => item.docId === docId);
             if (!p) return;
@@ -1809,8 +1829,6 @@
             const printAreaDetails = document.getElementById('receiptContentDetails');
             const now = new Date();
             const tglStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            
-            // FORMAT JAM 24 JAM (Contoh: 14:15:00)
             const jamStr = now.toLocaleTimeString('id-ID', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const noRef = 'PAM-' + Date.now().toString().slice(-8);
 

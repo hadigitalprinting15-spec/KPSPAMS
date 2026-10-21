@@ -34,7 +34,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
 
-    <!-- CSS LAYOUT CETAK STRUK UNTUK PRINTER LOKAL (CANON/EPSON/THERMAL) -->
+    <!-- CSS LAYOUT CETAK STRUK UNTUK PRINTER LOKAL -->
     <style>
         #thermalReceiptPrintArea {
             display: none;
@@ -561,7 +561,7 @@
                     <div class="space-y-4">
                         <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                             <div>
-                                <h4 class="font-bold text-white text-sm"><i class="fa-solid fa-building-columns text-sky-400 mr-2"></i>Pengaturan Rekening ATM & QRIS Perusahaan (> 1 Rekening)</h4>
+                                <h4 class="font-bold text-white text-sm"><i class="fa-solid fa-building-columns text-sky-400 mr-2"></i>Pengaturan Rekening ATM & QRIS Perusahaan</h4>
                                 <p class="text-xs text-slate-400">Anda dapat menambah lebih dari 1 rekening bank/e-wallet untuk pilihan pembayaran warga.</p>
                             </div>
                             <button type="button" onclick="tambahFormRekening()" class="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow">
@@ -812,7 +812,7 @@
         </div>
     </footer>
 
-    <!-- JAVASCRIPT & FIREBASE INTEGRATION LOGIC -->
+    <!-- JAVASCRIPT & FIREBASE LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, setDoc, updateDoc, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -860,16 +860,14 @@
             C: { tarif: 3500, beban: 10000 }
         };
         
-        // ARRAY DAFTAR REKENING (> 1 REKENING)
+        // REKENING LIST
         window.rekeningList = [
-            { bank: "BANK BRI", rek: "1234-01-005678-50-3", pemilik: "PAMSIMAS SUMBER SEJAHTERA" },
-            { bank: "BANK JATENG", rek: "3021-00-123456", pemilik: "KPSPAMS SUMBER SEJAHTERA" }
+            { bank: "BANK BRI", rek: "1234-01-005678-50-3", pemilik: "PAMSIMAS SUMBER SEJAHTERA" }
         ];
 
         window.pengaduanData = [];
         window.isAdminLoggedIn = false;
         window.isAdminView = false;
-        window.activePaymentIndex = -1;
         window.activePaymentDocId = null;
         let html5QrCode = null;
 
@@ -942,7 +940,6 @@
             setupVideoPlaylist();
             await checkAndSeedInitialData();
             await loadPengaturanFromFirestore();
-            renderFormRekeningList(); // Pastikan render rekening langsung dieksekusi
 
             onSnapshot(collection(db, "pelanggan"), (snapshot) => {
                 window.pelangganData = [];
@@ -966,7 +963,6 @@
             });
         });
 
-        // WAKTU AUTOMATIS FORMAT 24 JAM
         function displayAutoDateTime() {
             const today = new Date();
             const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -998,11 +994,10 @@
                 el.innerText = `${debetLPS} L/detik`;
             }
 
-            // KAPASITAS RESERVOIR OTOMATIS BERDASARKAN TOTAL PEMAKAIAN WARGA
-            const kapasitasMaksimalM3 = 150; // Kapasitas total penampungan reservoir (m3)
+            const kapasitasMaksimalM3 = 150; 
             let persentaseTerpakai = Math.round((totalM3BulanIni / kapasitasMaksimalM3) * 100);
             let sisaPersentase = 100 - persentaseTerpakai;
-            if (sisaPersentase < 10) sisaPersentase = 10; // Batas minimum aman reservoir
+            if (sisaPersentase < 10) sisaPersentase = 10;
             if (sisaPersentase > 100) sisaPersentase = 100;
 
             const elReservoir = document.getElementById('displayKapasitasReservoir');
@@ -1063,7 +1058,7 @@
                 closeModalLogin();
                 document.getElementById('adminPasswordInput').value = '';
                 toggleView(true);
-                renderFormRekeningList(); // Render list rekening saat admin masuk
+                renderFormRekeningList();
             } else {
                 alert("Password salah! Silakan coba lagi (Password default: admin123).");
             }
@@ -1689,9 +1684,7 @@
             }
         }
 
-        // ==========================================
-        // FITUR PENGATURAN BANYAK REKENING (> 1)
-        // ==========================================
+        // FUNSI KELOLA BANYAK REKENING (> 1)
         window.renderFormRekeningList = function() {
             const container = document.getElementById('listRekeningContainer');
             if (!container) return;
@@ -1768,9 +1761,7 @@
             }
         }
 
-        // ==========================================
-        // FITUR RESET DATA PEMASUKAN & TUNGGAKAN
-        // ==========================================
+        // FITUR RESET DATA PEMASUKAN & TUNGGAKAN PERIODE
         window.resetDataPemasukanDanTunggakan = async function() {
             const konfirmasi1 = confirm("PERINGATAN: Apakah Anda yakin ingin mereset seluruh data pemasukan kas, status pembayaran, dan sisa tunggakan pelanggan kembali ke Rp 0?");
             if (!konfirmasi1) return;

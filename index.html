@@ -97,7 +97,8 @@
                     </div>
                 </div>
 
-                <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
+                <!-- NAVIGASI PUBLIK (OTOMATIS TERSEMBUNYI SAAT DI PANEL ADMIN) -->
+                <nav id="publicNavMenu" class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
                     <a href="#beranda" class="hover:text-sky-400 transition-colors">Beranda</a>
                     <a href="#cek-tagihan" class="hover:text-sky-400 transition-colors">Cek Tagihan</a>
                     <a href="#tarif" class="hover:text-sky-400 transition-colors">Tarif Air</a>
@@ -618,7 +619,6 @@
         <div style="border-bottom: 1px dashed #000; margin: 4px 0;"></div>
         <div style="text-align: center; font-size: 8px; margin-top: 4px;">Simpan Struk Ini Sebagai Bukti Pembayaran Sah</div>
         <div style="text-align: center; font-size: 8px; font-weight: bold; margin-top: 2px;">*** TERIMA KASIH ***</div>
-        <div style="text-align: center; font-size: 7px; margin-top: 6px; color: #333;">Developed by: ARANSHA MEDIA</div>
     </div>
 
     <!-- MODAL SCANNER QR CODE -->
@@ -1091,6 +1091,17 @@
             window.isAdminView = showAdmin;
             document.getElementById('publicView').classList.toggle('hidden', window.isAdminView);
             document.getElementById('adminView').classList.toggle('hidden', !window.isAdminView);
+            
+            // SEMBUNYIKAN NAVIGASI PUBLIK SAAT DI PANEL ADMIN
+            const navMenu = document.getElementById('publicNavMenu');
+            if (navMenu) {
+                if (window.isAdminView) {
+                    navMenu.classList.add('!hidden');
+                } else {
+                    navMenu.classList.remove('!hidden');
+                }
+            }
+
             document.getElementById('toggleBtnText').innerText = window.isAdminView ? "Kembali" : "Panel Pengelola";
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }

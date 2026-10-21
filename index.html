@@ -561,7 +561,7 @@
                     <div class="space-y-4">
                         <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                             <div>
-                                <h4 class="font-bold text-white text-sm"><i class="fa-solid fa-building-columns text-sky-400 mr-2"></i>Pengaturan Rekening ATM & QRIS Perusahaan</h4>
+                                <h4 class="font-bold text-white text-sm"><i class="fa-solid fa-building-columns text-sky-400 mr-2"></i>Pengaturan Rekening ATM & QRIS Perusahaan (> 1 Rekening)</h4>
                                 <p class="text-xs text-slate-400">Anda dapat menambah lebih dari 1 rekening bank/e-wallet untuk pilihan pembayaran warga.</p>
                             </div>
                             <button type="button" onclick="tambahFormRekening()" class="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow">
@@ -862,7 +862,8 @@
         
         // ARRAY DAFTAR REKENING (> 1 REKENING)
         window.rekeningList = [
-            { bank: "BANK BRI", rek: "1234-01-005678-50-3", pemilik: "PAMSIMAS SUMBER SEJAHTERA" }
+            { bank: "BANK BRI", rek: "1234-01-005678-50-3", pemilik: "PAMSIMAS SUMBER SEJAHTERA" },
+            { bank: "BANK JATENG", rek: "3021-00-123456", pemilik: "KPSPAMS SUMBER SEJAHTERA" }
         ];
 
         window.pengaduanData = [];
@@ -941,6 +942,7 @@
             setupVideoPlaylist();
             await checkAndSeedInitialData();
             await loadPengaturanFromFirestore();
+            renderFormRekeningList(); // Pastikan render rekening langsung dieksekusi
 
             onSnapshot(collection(db, "pelanggan"), (snapshot) => {
                 window.pelangganData = [];
@@ -996,10 +998,11 @@
                 el.innerText = `${debetLPS} L/detik`;
             }
 
-            // HITUNG KAPASITAS RESERVOIR OTOMATIS (Maksimal Asumsi Penampungan = 100 m3 atau disesuaikan)
-            const kapasitasMaksimalM3 = 100; 
-            let sisaPersentase = 100 - Math.round((totalM3BulanIni / kapasitasMaksimalM3) * 100);
-            if (sisaPersentase < 15) sisaPersentase = 15; // Batas minimal aman
+            // KAPASITAS RESERVOIR OTOMATIS BERDASARKAN TOTAL PEMAKAIAN WARGA
+            const kapasitasMaksimalM3 = 150; // Kapasitas total penampungan reservoir (m3)
+            let persentaseTerpakai = Math.round((totalM3BulanIni / kapasitasMaksimalM3) * 100);
+            let sisaPersentase = 100 - persentaseTerpakai;
+            if (sisaPersentase < 10) sisaPersentase = 10; // Batas minimum aman reservoir
             if (sisaPersentase > 100) sisaPersentase = 100;
 
             const elReservoir = document.getElementById('displayKapasitasReservoir');
@@ -1060,6 +1063,7 @@
                 closeModalLogin();
                 document.getElementById('adminPasswordInput').value = '';
                 toggleView(true);
+                renderFormRekeningList(); // Render list rekening saat admin masuk
             } else {
                 alert("Password salah! Silakan coba lagi (Password default: admin123).");
             }
@@ -1348,4 +1352,780 @@
                 const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
                 docPdf.setFontSize(8);
                 docPdf.setFont("helvetica", "normal");
-                docPdf.text(`Tanggal Cetak:
+                docPdf.text(`Tanggal Cetak: ${todayStr}`, 14, 34);
+
+                docPdf.setLineWidth(0.5);
+                docPdf.line(14, 37, 196, 37);
+
+                const tableColumns = ["No", "ID SR", "Nama Pelanggan", "Gol", "Alamat / RT", "Status"];
+                const tableRows = [];
+
+                window.pelangganData.forEach((item, index) => {
+                    tableRows.push([
+                        index + 1,
+                        item.id,
+                        item.nama,
+                        item.golongan,
+                        item.alamat,
+                        item.status
+                    ]);
+                });
+
+                docPdf.autoTable({
+                    head: [tableColumns],
+                    body: tableRows,
+                    startY: 41,
+                    styles: { fontSize: 8, cellPadding: 2.5 },
+                    headStyles: { fillColor: [14, 165, 233], textColor: [255, 255, 255], fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [240, 249, 255] },
+                    margin: { left: 14, right: 14 }
+                });
+
+                docPdf.save("Laporan_Data_Pelanggan_Pamsimas_Tempuran.pdf");
+            };
+
+            if (imgElement) {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = imgElement.naturalWidth || 200;
+                    canvas.height = imgElement.naturalHeight || 200;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(imgElement, 0, 0);
+                    const dataURL = canvas.toDataURL('image/jpeg');
+                    generatePdfContent(dataURL);
+                } catch (e) {
+                    generatePdfContent(null);
+                }
+            } else {
+                generatePdfContent(null);
+            }
+        }
+
+        window.previewLaporanBulanan = function() {
+            const bulanPilih = document.getElementById('pilihBulanLaporan').value;
+            const tbody = document.getElementById('tableLaporanBulananBody');
+            tbody.innerHTML = '';
+
+            let totalTagihanPeriode = 0;
+            let totalLunasPeriode = 0;
+            let totalBelumBayarPeriode = 0;
+            let countData = 0;
+
+            window.pelangganData.forEach(p => {
+                let nominal = 0;
+                let pemakaianStr = "0 m³";
+                let statusBayarStr = "Belum Bayar";
+
+                if (p.bulanTagihan === bulanPilih) {
+                    nominal = p.tagihan || 0;
+                    pemakaianStr = `${(p.meterIni || 0) - (p.meterLalu || 0)} m³`;
+                    statusBayarStr = p.statusBayar || "Belum Bayar";
+                } else if (p.riwayatTagihan && p.riwayatTagihan.length > 0) {
+                    const foundRiwayat = p.riwayatTagihan.find(r => r.bulan === bulanPilih);
+                    if (foundRiwayat) {
+                        nominal = foundRiwayat.total || 0;
+                        pemakaianStr = foundRiwayat.pemakaian || "0 m³";
+                        statusBayarStr = foundRiwayat.status || "Belum Bayar";
+                    }
+                }
+
+                if (nominal > 0 || p.bulanTagihan === bulanPilih) {
+                    countData++;
+                    totalTagihanPeriode += nominal;
+                    if (statusBayarStr === "Lunas") {
+                        totalLunasPeriode += nominal;
+                    } else {
+                        totalBelumBayarPeriode += nominal;
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/40 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-3 font-semibold text-white">${p.id}</td>
+                        <td class="p-3 font-medium text-slate-200">${p.nama}</td>
+                        <td class="p-3 text-slate-300">${pemakaianStr}</td>
+                        <td class="p-3 font-bold text-white">Rp ${nominal.toLocaleString('id-ID')}</td>
+                        <td class="p-3 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusBayarStr === 'Lunas' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+                                ${statusBayarStr}
+                            </span>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+
+            if (countData === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Tidak ada data tagihan tercatat untuk periode ${bulanPilih}.</td></tr>`;
+            }
+
+            document.getElementById('rekapTotalTagihan').innerText = `Rp ${totalTagihanPeriode.toLocaleString('id-ID')}`;
+            document.getElementById('rekapTotalLunas').innerText = `Rp ${totalLunasPeriode.toLocaleString('id-ID')}`;
+            document.getElementById('rekapTotalBelumBayar').innerText = `Rp ${totalBelumBayarPeriode.toLocaleString('id-ID')}`;
+        }
+
+        window.exportLaporanBulananPDF = function() {
+            const bulanPilih = document.getElementById('pilihBulanLaporan').value;
+            const { jsPDF } = window.jspdf;
+            const docPdf = new jsPDF('p', 'mm', 'a4');
+            const imgElement = document.getElementById('appLogoImg');
+
+            let totalTagihanPeriode = 0;
+            let totalLunasPeriode = 0;
+            let totalBelumBayarPeriode = 0;
+            const tableRows = [];
+            let indexNo = 1;
+
+            window.pelangganData.forEach(p => {
+                let nominal = 0;
+                let pemakaianStr = "0 m³";
+                let statusBayarStr = "Belum Bayar";
+
+                if (p.bulanTagihan === bulanPilih) {
+                    nominal = p.tagihan || 0;
+                    pemakaianStr = `${(p.meterIni || 0) - (p.meterLalu || 0)} m³`;
+                    statusBayarStr = p.statusBayar || "Belum Bayar";
+                } else if (p.riwayatTagihan && p.riwayatTagihan.length > 0) {
+                    const foundRiwayat = p.riwayatTagihan.find(r => r.bulan === bulanPilih);
+                    if (foundRiwayat) {
+                        nominal = foundRiwayat.total || 0;
+                        pemakaianStr = foundRiwayat.pemakaian || "0 m³";
+                        statusBayarStr = foundRiwayat.status || "Belum Bayar";
+                    }
+                }
+
+                if (nominal > 0 || p.bulanTagihan === bulanPilih) {
+                    totalTagihanPeriode += nominal;
+                    if (statusBayarStr === "Lunas") {
+                        totalLunasPeriode += nominal;
+                    } else {
+                        totalBelumBayarPeriode += nominal;
+                    }
+
+                    tableRows.push([
+                        indexNo++,
+                        p.id,
+                        p.nama,
+                        pemakaianStr,
+                        `Rp ${nominal.toLocaleString('id-ID')}`,
+                        statusBayarStr
+                    ]);
+                }
+            });
+
+            const generatePdfContent = (logoDataUrl) => {
+                if (logoDataUrl) {
+                    docPdf.addImage(logoDataUrl, 'JPEG', 14, 10, 16, 16);
+                    docPdf.setFont("helvetica", "bold");
+                    docPdf.setFontSize(14);
+                    docPdf.text("PAMSIMAS SUMBER SEJAHTERA", 34, 15);
+                    docPdf.setFontSize(9);
+                    docPdf.setFont("helvetica", "normal");
+                    docPdf.text("Dusun Tempuran Desa Pagerejo, Kecamatan Kertek, Wonosobo", 34, 21);
+                } else {
+                    docPdf.setFont("helvetica", "bold");
+                    docPdf.setFontSize(14);
+                    docPdf.text("PAMSIMAS SUMBER SEJAHTERA", 14, 15);
+                    docPdf.setFontSize(9);
+                    docPdf.setFont("helvetica", "normal");
+                    docPdf.text("Dusun Tempuran Desa Pagerejo, Kecamatan Kertek, Wonosobo", 14, 21);
+                }
+
+                docPdf.setFont("helvetica", "bold");
+                docPdf.setFontSize(11);
+                docPdf.text(`LAPORAN REKAPITULASI KEUANGAN & TAGIHAN - PERIODE ${bulanPilih.toUpperCase()}`, 14, 29);
+                
+                const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+                docPdf.setFontSize(8);
+                docPdf.setFont("helvetica", "normal");
+                docPdf.text(`Tanggal Cetak: ${todayStr}`, 14, 34);
+
+                docPdf.setLineWidth(0.3);
+                docPdf.rect(14, 38, 182, 16);
+                docPdf.setFont("helvetica", "bold");
+                docPdf.setFontSize(8);
+                docPdf.text(`Total Tagihan: Rp ${totalTagihanPeriode.toLocaleString('id-ID')}`, 18, 44);
+                docPdf.text(`Pendapatan Lunas: Rp ${totalLunasPeriode.toLocaleString('id-ID')}`, 18, 49);
+                docPdf.text(`Tunggakan Belum Bayar: Rp ${totalBelumBayarPeriode.toLocaleString('id-ID')}`, 110, 44);
+
+                docPdf.setLineWidth(0.5);
+                docPdf.line(14, 57, 196, 57);
+
+                const tableColumns = ["No", "ID SR", "Nama Pelanggan", "Pemakaian", "Jumlah Tagihan", "Status"];
+
+                docPdf.autoTable({
+                    head: [tableColumns],
+                    body: tableRows,
+                    startY: 61,
+                    styles: { fontSize: 8, cellPadding: 2.5 },
+                    headStyles: { fillColor: [14, 165, 233], textColor: [255, 255, 255], fontStyle: 'bold' },
+                    alternateRowStyles: { fillColor: [240, 249, 255] },
+                    margin: { left: 14, right: 14 }
+                });
+
+                docPdf.save(`Laporan_Pamsimas_${bulanPilih.replace(' ', '_')}.pdf`);
+            };
+
+            if (imgElement) {
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = imgElement.naturalWidth || 200;
+                    canvas.height = imgElement.naturalHeight || 200;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(imgElement, 0, 0);
+                    const dataURL = canvas.toDataURL('image/jpeg');
+                    generatePdfContent(dataURL);
+                } catch (e) {
+                    generatePdfContent(null);
+                }
+            } else {
+                generatePdfContent(null);
+            }
+        }
+
+        window.showQrModal = function(docId) {
+            const p = window.pelangganData.find(item => item.docId === docId);
+            const modal = document.getElementById('modalQr');
+            const container = document.getElementById('qrcodeContainer');
+            const details = document.getElementById('qrDetails');
+
+            container.innerHTML = "";
+            const qrText = `PAMSIMAS SUMBER SEJAHTERA\nID: ${p.id}\nNama: ${p.nama}\nPeriode: ${p.bulanTagihan || 'Oktober 2026'}\nTagihan: Rp ${(p.tagihan || 0).toLocaleString('id-ID')}\nStatus: ${p.statusBayar}`;
+            
+            new QRCode(container, {
+                text: qrText,
+                width: 150,
+                height: 150
+            });
+
+            details.innerHTML = `
+                <p><b>ID SR:</b> ${p.id}</p>
+                <p><b>Nama:</b> ${p.nama}</p>
+                <p><b>Periode Bulan:</b> ${p.bulanTagihan || 'Oktober 2026'}</p>
+                <p><b>Total Tagihan:</b> Rp ${(p.tagihan || 0).toLocaleString('id-ID')}</p>
+                <p><b>Status Pembayaran:</b> <span class="${p.statusBayar === 'Lunas' ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}">${p.statusBayar}</span></p>
+            `;
+
+            modal.classList.remove('hidden');
+        }
+
+        window.closeModalQr = function() {
+            document.getElementById('modalQr').classList.add('hidden');
+        }
+
+        window.openModalPelanggan = function(docId) {
+            const modal = document.getElementById('modalPelanggan');
+            const title = document.getElementById('modalPelangganTitle');
+            
+            if (docId) {
+                const p = window.pelangganData.find(item => item.docId === docId);
+                title.innerText = "Edit Data Pelanggan";
+                document.getElementById('formIsEdit').value = docId;
+                document.getElementById('formSrId').value = p.id;
+                document.getElementById('formSrId').disabled = true;
+                document.getElementById('formNama').value = p.nama;
+                document.getElementById('formGolongan').value = p.golongan;
+                document.getElementById('formAlamat').value = p.alamat;
+                document.getElementById('formStatus').value = p.status;
+            } else {
+                title.innerText = "Tambah Pelanggan Baru";
+                document.getElementById('formIsEdit').value = "false";
+                document.getElementById('formSrId').value = `SR-0${window.pelangganData.length + 1}`;
+                document.getElementById('formSrId').disabled = false;
+                document.getElementById('formNama').value = '';
+                document.getElementById('formGolongan').value = 'A';
+                document.getElementById('formAlamat').value = 'RT 01 / RW 07 Tempuran';
+                document.getElementById('formStatus').value = 'Aktif';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        window.closeModalPelanggan = function() {
+            document.getElementById('modalPelanggan').classList.add('hidden');
+        }
+
+        window.savePelanggan = async function(e) {
+            e.preventDefault();
+            const docIdTarget = document.getElementById('formIsEdit').value;
+            const id = document.getElementById('formSrId').value.trim();
+            const nama = document.getElementById('formNama').value.trim();
+            const golongan = document.getElementById('formGolongan').value;
+            const alamat = document.getElementById('formAlamat').value.trim();
+            const status = document.getElementById('formStatus').value;
+
+            if (docIdTarget !== "false") {
+                await updateDoc(doc(db, "pelanggan", docIdTarget), { nama, golongan, alamat, status });
+            } else {
+                await setDoc(doc(db, "pelanggan", id), {
+                    id, nama, golongan, alamat, status,
+                    bulanTagihan: "Oktober 2026",
+                    meterLalu: 0, meterIni: 0, tagihanBulanIni: 0, tunggakanLalu: 0, tagihan: 0, statusBayar: "Belum Bayar",
+                    riwayatTagihan: []
+                });
+            }
+
+            renderPelangganTable();
+            renderMeterOptions();
+            renderPembayaranTable();
+            closeModalPelanggan();
+            alert("Data pelanggan berhasil disimpan permanen ke Firebase!");
+        }
+
+        window.simpanTarifBaru = async function() {
+            window.tarifData.A.tarif = parseFloat(document.getElementById('inputTarifA').value) || 0;
+            window.tarifData.A.beban = parseFloat(document.getElementById('inputBebanA').value) || 0;
+            window.tarifData.B.tarif = parseFloat(document.getElementById('inputTarifB').value) || 0;
+            window.tarifData.B.beban = parseFloat(document.getElementById('inputBebanB').value) || 0;
+            window.tarifData.C.tarif = parseFloat(document.getElementById('inputTarifC').value) || 0;
+            window.tarifData.C.beban = parseFloat(document.getElementById('inputBebanC').value) || 0;
+
+            try {
+                await setDoc(doc(db, "pengaturan", "tarif"), window.tarifData);
+                updateLandingTarifDisplay();
+                alert("Pengaturan tarif air berhasil disimpan permanen ke Firebase Firestore!");
+            } catch (err) {
+                alert("Gagal menyimpan tarif: " + err.message);
+            }
+        }
+
+        // ==========================================
+        // FITUR PENGATURAN BANYAK REKENING (> 1)
+        // ==========================================
+        window.renderFormRekeningList = function() {
+            const container = document.getElementById('listRekeningContainer');
+            if (!container) return;
+            container.innerHTML = '';
+
+            window.rekeningList.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = "grid sm:grid-cols-12 gap-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs items-end";
+                div.innerHTML = `
+                    <div class="sm:col-span-3">
+                        <label class="block font-semibold text-slate-300 mb-1">Nama Bank / E-Wallet #${index + 1}</label>
+                        <input type="text" id="bankName_${index}" value="${item.bank || ''}" placeholder="Cth: BANK BRI" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
+                    </div>
+                    <div class="sm:col-span-4">
+                        <label class="block font-semibold text-slate-300 mb-1">Nomor Rekening / VA</label>
+                        <input type="text" id="bankRek_${index}" value="${item.rek || ''}" placeholder="Cth: 1234-01-005678" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
+                    </div>
+                    <div class="sm:col-span-4">
+                        <label class="block font-semibold text-slate-300 mb-1">Atas Nama Rekening</label>
+                        <input type="text" id="bankPemilik_${index}" value="${item.pemilik || ''}" placeholder="Cth: PAMSIMAS SUMBER SEJAHTERA" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
+                    </div>
+                    <div class="sm:col-span-1 flex justify-end">
+                        <button type="button" onclick="hapusFormRekening(${index})" title="Hapus Rekening Ini" class="w-full sm:w-auto px-3 py-2.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg transition-colors flex items-center justify-center">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        window.tambahFormRekening = function() {
+            gatherRekeningInputFromDOM();
+            window.rekeningList.push({ bank: "", rek: "", pemilik: "PAMSIMAS SUMBER SEJAHTERA" });
+            renderFormRekeningList();
+        }
+
+        window.hapusFormRekening = function(index) {
+            gatherRekeningInputFromDOM();
+            if (window.rekeningList.length <= 1) {
+                alert("Minimal harus terdapat 1 data rekening perusahaan!");
+                return;
+            }
+            window.rekeningList.splice(index, 1);
+            renderFormRekeningList();
+        }
+
+        function gatherRekeningInputFromDOM() {
+            const newList = [];
+            window.rekeningList.forEach((item, index) => {
+                const b = document.getElementById(`bankName_${index}`);
+                const r = document.getElementById(`bankRek_${index}`);
+                const p = document.getElementById(`bankPemilik_${index}`);
+                if (b && r && p) {
+                    newList.push({
+                        bank: b.value.trim(),
+                        rek: r.value.trim(),
+                        pemilik: p.value.trim()
+                    });
+                }
+            });
+            if (newList.length > 0) {
+                window.rekeningList = newList;
+            }
+        }
+
+        window.simpanSemuaRekening = async function() {
+            gatherRekeningInputFromDOM();
+            try {
+                await setDoc(doc(db, "pengaturan", "rekening"), { list: window.rekeningList });
+                alert("Semua data rekening perusahaan berhasil disimpan permanen ke Firebase Firestore!");
+            } catch (err) {
+                alert("Gagal menyimpan rekening: " + err.message);
+            }
+        }
+
+        // ==========================================
+        // FITUR RESET DATA PEMASUKAN & TUNGGAKAN
+        // ==========================================
+        window.resetDataPemasukanDanTunggakan = async function() {
+            const konfirmasi1 = confirm("PERINGATAN: Apakah Anda yakin ingin mereset seluruh data pemasukan kas, status pembayaran, dan sisa tunggakan pelanggan kembali ke Rp 0?");
+            if (!konfirmasi1) return;
+
+            const konfirmasi2 = prompt("Ketik 'RESET' untuk mengonfirmasi tindakan ini:");
+            if (konfirmasi2 !== "RESET") {
+                alert("Konfirmasi dibatalkan. Data tidak direset.");
+                return;
+            }
+
+            try {
+                for (let p of window.pelangganData) {
+                    await updateDoc(doc(db, "pelanggan", p.docId), {
+                        tagihan: 0,
+                        tagihanBulanIni: 0,
+                        tunggakanLalu: 0,
+                        statusBayar: "Belum Bayar",
+                        riwayatTagihan: []
+                    });
+                }
+                alert("Semua data pemasukan kas, status pembayaran, dan tunggakan berhasil direset ke Rp 0!");
+            } catch (err) {
+                alert("Gagal mereset data: " + err.message);
+            }
+        }
+
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-sky-500', 'text-sky-400');
+                btn.classList.add('border-transparent', 'text-slate-400');
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('border-sky-500', 'text-sky-400');
+
+            document.getElementById('content-pelanggan').classList.add('hidden');
+            document.getElementById('content-catat').classList.add('hidden');
+            document.getElementById('content-pembayaran').classList.add('hidden');
+            document.getElementById('content-laporan').classList.add('hidden');
+            document.getElementById('content-tarifAdmin').classList.add('hidden');
+            document.getElementById('content-pengaduanAdmin').classList.add('hidden');
+
+            document.getElementById(`content-${tabName}`).classList.remove('hidden');
+
+            if (tabName === 'laporan') {
+                previewLaporanBulanan();
+            } else if (tabName === 'tarifAdmin') {
+                renderFormRekeningList();
+            }
+        }
+
+        window.renderMeterOptions = function() {
+            const select = document.getElementById('meterSelectSr');
+            select.innerHTML = '';
+            window.pelangganData.forEach((p) => {
+                const opt = document.createElement('option');
+                opt.value = p.docId;
+                opt.innerText = `${p.id} - ${p.nama}`;
+                select.appendChild(opt);
+            });
+            loadMeterSrData();
+        }
+
+        window.loadMeterSrData = function() {
+            const docId = document.getElementById('meterSelectSr').value;
+            const found = window.pelangganData.find(p => p.docId === docId);
+            if (found) {
+                document.getElementById('meterLalu').value = found.meterLalu || 0;
+                document.getElementById('meterIni').value = found.meterIni || '';
+            }
+        }
+
+        window.simpanMeteran = async function() {
+            const docId = document.getElementById('meterSelectSr').value;
+            const bulanTagihan = document.getElementById('meterBulanTagihan').value;
+            const meterLalu = parseFloat(document.getElementById('meterLalu').value);
+            const meterIni = parseFloat(document.getElementById('meterIni').value);
+            const found = window.pelangganData.find(p => p.docId === docId);
+
+            if (isNaN(meterLalu) || isNaN(meterIni) || meterIni < meterLalu || !found) {
+                alert("Masukkan angka meteran dengan benar (Meter Ini harus >= Meter Lalu)!");
+                return;
+            }
+
+            const pemakaian = meterIni - meterLalu;
+            const gol = found.golongan;
+            const currentTarif = window.tarifData[gol] || window.tarifData.A;
+            const tagihanBulanIni = (pemakaian * currentTarif.tarif) + currentTarif.beban;
+
+            let riwayatList = found.riwayatTagihan || [];
+            riwayatList = riwayatList.filter(item => item.bulan !== bulanTagihan);
+
+            riwayatList.push({
+                bulan: bulanTagihan,
+                pemakaian: `${pemakaian} m³`,
+                mSemula: meterLalu,
+                mKini: meterIni,
+                total: tagihanBulanIni,
+                status: "Belum Bayar"
+            });
+
+            let totalAkumulasi = 0;
+            riwayatList.forEach(item => {
+                if (item.status === "Belum Bayar") {
+                    totalAkumulasi += (item.total || 0);
+                }
+            });
+
+            let tunggakanLalu = totalAkumulasi - tagihanBulanIni;
+            if (tunggakanLalu < 0) tunggakanLalu = 0;
+
+            await updateDoc(doc(db, "pelanggan", docId), {
+                bulanTagihan: bulanTagihan,
+                meterLalu: meterLalu,
+                meterIni: meterIni,
+                tagihanBulanIni: tagihanBulanIni,
+                tunggakanLalu: tunggakanLalu,
+                tagihan: totalAkumulasi,
+                statusBayar: "Belum Bayar",
+                riwayatTagihan: riwayatList
+            });
+
+            updateFinancialMetrics();
+            renderPembayaranTable();
+            hitungDebetAirOtomatis();
+            alert(`Tagihan (${bulanTagihan}) untuk ${found.nama} berhasil dicatat:\n- Tagihan Bulan Ini: Rp ${tagihanBulanIni.toLocaleString('id-ID')}\n- Total Keseluruhan: Rp ${totalAkumulasi.toLocaleString('id-ID')}`);
+        }
+
+        window.renderPembayaranTable = function() {
+            const tbody = document.getElementById('tablePembayaranBody');
+            tbody.innerHTML = '';
+
+            window.pelangganData.forEach((item) => {
+                const isLunas = item.statusBayar === "Lunas";
+                const pemakaian = (item.meterIni || 0) - (item.meterLalu || 0);
+                const tunggakan = item.tunggakanLalu || 0;
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40 transition-colors";
+                tr.innerHTML = `
+                    <td class="p-3 font-semibold text-white">${item.id}</td>
+                    <td class="p-3 font-medium text-slate-200">${item.nama}</td>
+                    <td class="p-3 text-sky-400 font-medium">${item.bulanTagihan || 'Oktober 2026'}</td>
+                    <td class="p-3 text-slate-300">${pemakaian > 0 ? pemakaian + ' m³' : '0 m³'}</td>
+                    <td class="p-3 font-medium ${tunggakan > 0 ? 'text-rose-400' : 'text-slate-400'}">Rp ${tunggakan.toLocaleString('id-ID')}</td>
+                    <td class="p-3 font-bold text-white">Rp ${(item.tagihan || 0).toLocaleString('id-ID')}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isLunas ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+                            ${item.statusBayar}
+                        </span>
+                    </td>
+                    <td class="p-3 text-right space-x-1">
+                        ${!isLunas ? 
+                            `<button onclick="bukaModalPembayaranByDocId('${item.docId}')" class="px-2.5 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors">
+                                <i class="fa-solid fa-qrcode mr-1"></i>Bayar
+                             </button>` : 
+                            `<button onclick="cetakStrukThermal('${item.docId}')" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors">
+                                <i class="fa-solid fa-print mr-1"></i>Cetak Struk
+                             </button>`
+                        }
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        window.cetakStrukThermal = function(docId) {
+            const p = window.pelangganData.find(item => item.docId === docId);
+            if (!p) return;
+
+            const printAreaDetails = document.getElementById('receiptContentDetails');
+            const now = new Date();
+            const tglStr = now.toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const jamStr = now.toLocaleTimeString('id-ID', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const noRef = 'PAM-' + Date.now().toString().slice(-8);
+
+            const pemakaian = (p.meterIni || 0) - (p.meterLalu || 0);
+            const golInfo = window.tarifData[p.golongan] || window.tarifData.A;
+            const biayaPemakaian = pemakaian * golInfo.tarif;
+            const biayaBeban = golInfo.beban || 0;
+            const totalTagihan = p.tagihan || (biayaPemakaian + biayaBeban);
+
+            printAreaDetails.innerHTML = `
+                <div style="display: flex; justify-content: space-between;">
+                    <span>TGL : ${tglStr}</span>
+                    <span>JAM: ${jamStr}</span>
+                </div>
+                <div>NO REF  : ${noRef}</div>
+                <div>ID SR   : ${p.id}</div>
+                <div>NAMA    : ${p.nama.toUpperCase()}</div>
+                <div>GOL     : GOLONGAN ${p.golongan}</div>
+                <div>ALAMAT  : ${p.alamat}</div>
+                <div style="border-bottom: 1px dashed #000; margin: 3px 0;"></div>
+                
+                <div>PERIODE : ${p.bulanTagihan || 'Oktober 2026'}</div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Mtr Awal-Akhir</span>
+                    <span>: ${p.meterLalu || 0} - ${p.meterIni || 0}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Pemakaian Air</span>
+                    <span>: ${pemakaian} m³</span>
+                </div>
+                
+                <div style="border-bottom: 1px dashed #000; margin: 3px 0;"></div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Biaya Air</span>
+                    <span>Rp ${biayaPemakaian.toLocaleString('id-ID')}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Beban Tetap</span>
+                    <span>Rp ${biayaBeban.toLocaleString('id-ID')}</span>
+                </div>
+                ${p.tunggakanLalu > 0 ? `
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Tunggakan Lalu</span>
+                    <span>Rp ${p.tunggakanLalu.toLocaleString('id-ID')}</span>
+                </div>` : ''}
+                
+                <div style="border-bottom: 1px dashed #000; margin: 3px 0;"></div>
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 11px;">
+                    <span>TOTAL BAYAR</span>
+                    <span>Rp ${totalTagihan.toLocaleString('id-ID')}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 2px;">
+                    <span>STATUS</span>
+                    <span>: LUNAS</span>
+                </div>
+            `;
+
+            window.print();
+        }
+
+        window.bukaModalPembayaranByDocId = function(docId) {
+            window.activePaymentDocId = docId;
+            const p = window.pelangganData.find(item => item.docId === docId);
+            const modal = document.getElementById('modalPembayaran');
+            const infoBox = document.getElementById('pembayaranDetailInfo');
+
+            const tagihanBulanIni = p.tagihanBulanIni || (p.tagihan - (p.tunggakanLalu || 0)) || 0;
+            const tunggakanLalu = p.tunggakanLalu || 0;
+
+            infoBox.innerHTML = `
+                <p><b>ID & Nama:</b> ${p.id} - ${p.nama}</p>
+                <p><b>Periode Tagihan:</b> ${p.bulanTagihan || 'Oktober 2026'}</p>
+                <p><b>Tagihan Bulan Ini:</b> Rp ${tagihanBulanIni.toLocaleString('id-ID')}</p>
+                <p><b>Tunggakan Bulan Lalu:</b> Rp ${tunggakanLalu.toLocaleString('id-ID')}</p>
+                <p class="text-sm font-extrabold text-white pt-1 border-t border-sky-800/50 mt-1">Total Harus Dibayar: Rp ${(p.tagihan || 0).toLocaleString('id-ID')}</p>
+            `;
+
+            const modalRekContainer = document.getElementById('modalListRekeningDisplay');
+            if (modalRekContainer) {
+                modalRekContainer.innerHTML = '';
+                window.rekeningList.forEach((rekObj, idx) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = "p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1";
+                    itemDiv.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-white">${rekObj.bank || 'Bank'}</span>
+                            <span class="text-[10px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded font-semibold">Pilihan #${idx + 1}</span>
+                        </div>
+                        <div class="flex justify-between font-mono text-sky-400 font-bold text-sm">
+                            <span>${rekObj.rek || '-'}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400">Atas Nama: ${rekObj.pemilik || '-'}</div>
+                    `;
+                    modalRekContainer.appendChild(itemDiv);
+                });
+            }
+
+            const qrisContainer = document.getElementById('qrisCodeContainer');
+            qrisContainer.innerHTML = "";
+            const primaryBank = window.rekeningList[0] || { bank: 'BANK BRI', rek: '-' };
+            const qrisPayload = `PAMSIMAS-PAY|ID:${p.id}|NAMA:${p.nama}|BULAN:${p.bulanTagihan || 'Oktober 2026'}|TOTAL:${p.tagihan}|BANK:${primaryBank.bank}|REK:${primaryBank.rek}`;
+            new QRCode(qrisContainer, {
+                text: qrisPayload,
+                width: 140,
+                height: 140
+            });
+
+            switchMetodeBayar('qris');
+            modal.classList.remove('hidden');
+        }
+
+        window.closeModalPembayaran = function() {
+            document.getElementById('modalPembayaran').classList.add('hidden');
+        }
+
+        window.switchMetodeBayar = function(metode) {
+            const btnQris = document.getElementById('btnTabQris');
+            const btnAtm = document.getElementById('btnTabAtm');
+            const contentQris = document.getElementById('contentMetodeQris');
+            const contentAtm = document.getElementById('contentMetodeAtm');
+
+            if (metode === 'qris') {
+                btnQris.className = "py-2 px-3 rounded-xl bg-sky-600 text-white transition-all text-center";
+                btnAtm.className = "py-2 px-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all text-center";
+                contentQris.classList.remove('hidden');
+                contentAtm.classList.add('hidden');
+            } else {
+                btnAtm.className = "py-2 px-3 rounded-xl bg-sky-600 text-white transition-all text-center";
+                btnQris.className = "py-2 px-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all text-center";
+                contentAtm.classList.remove('hidden');
+                contentQris.classList.add('hidden');
+            }
+        }
+
+        window.konfirmasiPembayaranSukses = async function() {
+            if (window.activePaymentDocId) {
+                const targetDocId = window.activePaymentDocId;
+                const p = window.pelangganData.find(item => item.docId === targetDocId);
+                
+                let riwayatUpdated = (p.riwayatTagihan || []).map(item => ({
+                    ...item,
+                    status: "Lunas"
+                }));
+
+                await updateDoc(doc(db, "pelanggan", targetDocId), { 
+                    statusBayar: "Lunas",
+                    tunggakanLalu: 0,
+                    riwayatTagihan: riwayatUpdated
+                });
+                
+                updateFinancialMetrics();
+                renderPembayaranTable();
+                
+                const queryInput = document.getElementById('searchIdSr').value.trim();
+                if (queryInput) {
+                    cekTagihanPublik();
+                }
+
+                closeModalPembayaran();
+                alert(`Pembayaran periode ${p.bulanTagihan || 'Oktober 2026'} untuk ${p.nama} (${p.id}) berhasil dikonfirmasi lunas!`);
+                
+                if (confirm("Ingin langsung mencetak struk kasir?")) {
+                    cetakStrukThermal(targetDocId);
+                }
+            }
+        }
+
+        window.renderPengaduanAdmin = function() {
+            const container = document.getElementById('adminPengaduanList');
+            document.getElementById('totalPengaduanCount').innerText = window.pengaduanData.length;
+            container.innerHTML = '';
+
+            window.pengaduanData.forEach((p) => {
+                const div = document.createElement('div');
+                div.className = "p-4 bg-slate-950 rounded-xl border border-slate-800 text-xs space-y-1";
+                div.innerHTML = `
+                    <div class="flex justify-between font-bold text-white">
+                        <span>${p.sr}</span>
+                        <a href="https://wa.me/${p.wa}" target="_blank" class="text-emerald-400 hover:underline"><i class="fa-brands fa-whatsapp mr-1"></i>${p.wa}</a>
+                    </div>
+                    <p class="text-slate-300">${p.pesan}</p>
+                `;
+                container.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>

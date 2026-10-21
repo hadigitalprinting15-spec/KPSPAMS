@@ -97,7 +97,7 @@
                     </div>
                 </div>
 
-                <!-- NAVIGASI PUBLIK (OTOMATIS TERSEMBUNYI SAAT DI PANEL ADMIN) -->
+                <!-- NAVIGASI PUBLIK -->
                 <nav id="publicNavMenu" class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
                     <a href="#beranda" class="hover:text-sky-400 transition-colors">Beranda</a>
                     <a href="#cek-tagihan" class="hover:text-sky-400 transition-colors">Cek Tagihan</a>
@@ -804,9 +804,6 @@
                 </div>
                 <div class="text-left md:text-right text-slate-500 space-y-1">
                     <p>&copy; 2026 KPSPAMS SUMBER SEJAHTERA. All rights reserved.</p>
-                    <p class="text-[11px] text-sky-400 font-medium">
-                        Developed by: ARANSHA MEDIA
-                    </p>
                 </div>
             </div>
         </div>
@@ -860,7 +857,6 @@
             C: { tarif: 3500, beban: 10000 }
         };
         
-        // REKENING LIST
         window.rekeningList = [
             { bank: "BANK BRI", rek: "1234-01-005678-50-3", pemilik: "PAMSIMAS SUMBER SEJAHTERA" }
         ];
@@ -1092,13 +1088,13 @@
             document.getElementById('publicView').classList.toggle('hidden', window.isAdminView);
             document.getElementById('adminView').classList.toggle('hidden', !window.isAdminView);
             
-            // SEMBUNYIKAN NAVIGASI PUBLIK SAAT DI PANEL ADMIN
+            // SEMBUNYIKAN SEPENUHNYA MENU NAVIGASI PUBLIK SAAT MASUK KE PANEL ADMIN
             const navMenu = document.getElementById('publicNavMenu');
             if (navMenu) {
                 if (window.isAdminView) {
-                    navMenu.classList.add('!hidden');
+                    navMenu.style.setProperty('display', 'none', 'important');
                 } else {
-                    navMenu.classList.remove('!hidden');
+                    navMenu.style.removeProperty('display');
                 }
             }
 
@@ -1695,7 +1691,6 @@
             }
         }
 
-        // FUNSI KELOLA BANYAK REKENING (> 1)
         window.renderFormRekeningList = function() {
             const container = document.getElementById('listRekeningContainer');
             if (!container) return;
@@ -1772,7 +1767,6 @@
             }
         }
 
-        // FITUR RESET DATA PEMASUKAN & TUNGGAKAN PERIODE
         window.resetDataPemasukanDanTunggakan = async function() {
             const konfirmasi1 = confirm("PERINGATAN: Apakah Anda yakin ingin mereset seluruh data pemasukan kas, status pembayaran, dan sisa tunggakan pelanggan kembali ke Rp 0?");
             if (!konfirmasi1) return;

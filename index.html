@@ -491,7 +491,7 @@
                     </div>
                 </div>
 
-                <!-- TAB CONTENT: TARIF & REKENING -->
+                <!-- TAB CONTENT: TARIF & REKENING & RESET DATA -->
                 <div id="content-tarifAdmin" class="hidden p-6 space-y-6">
                     <div class="space-y-4">
                         <h4 class="font-bold text-white text-sm">Pengaturan Tarif Air per Golongan</h4>
@@ -557,7 +557,7 @@
 
                     <hr class="border-slate-800">
 
-                    <!-- PERBAIKAN UTAMA: TAMPILAN DAN MANAJEMEN MULTI REKENING PERUSAHAAN -->
+                    <!-- PENGATURAN BANYAK REKENING PERUSAHAAN -->
                     <div class="space-y-4">
                         <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                             <div>
@@ -575,6 +575,21 @@
                         <div class="flex justify-end pt-2">
                             <button type="button" onclick="simpanSemuaRekening()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg">
                                 <i class="fa-solid fa-floppy-disk"></i> Simpan Semua Rekening Perusahaan
+                            </button>
+                        </div>
+                    </div>
+
+                    <hr class="border-slate-800">
+
+                    <!-- FITUR BARU: RESET DATA PEMASUKAN DAN TUNGGAKAN -->
+                    <div class="space-y-4 bg-rose-950/30 p-5 rounded-2xl border border-rose-900/50">
+                        <div>
+                            <h4 class="font-bold text-rose-300 text-sm"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Reset Data Pemasukan & Tunggakan</h4>
+                            <p class="text-xs text-slate-400 mt-0.5">Fitur ini digunakan untuk mereset seluruh data kas pemasukan, status pembayaran, dan tunggakan pelanggan kembali ke nol (0) untuk memulai siklus periode baru. Profil data pelanggan tetap aman.</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <button type="button" onclick="resetDataPemasukanDanTunggakan()" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg transition-all">
+                                <i class="fa-solid fa-rotate-right"></i> Reset Pemasukan & Tunggakan Sekarang
                             </button>
                         </div>
                     </div>
@@ -603,7 +618,7 @@
         <div style="border-bottom: 1px dashed #000; margin: 4px 0;"></div>
         <div style="text-align: center; font-size: 8px; margin-top: 4px;">Simpan Struk Ini Sebagai Bukti Pembayaran Sah</div>
         <div style="text-align: center; font-size: 8px; font-weight: bold; margin-top: 2px;">*** TERIMA KASIH ***</div>
-        <div style="text-align: center; font-size: 7px; margin-top: 6px; color: #333;">by: KPSPAMS SUMBER SEJAHTERA</div>
+        <div style="text-align: center; font-size: 7px; margin-top: 6px; color: #333;">Developed by: ARANSHA MEDIA</div>
     </div>
 
     <!-- MODAL SCANNER QR CODE -->
@@ -1734,6 +1749,35 @@
             }
         }
 
+        // ==========================================
+        // FITUR BARU: RESET DATA PEMASUKAN & TUNGGAKAN
+        // ==========================================
+        window.resetDataPemasukanDanTunggakan = async function() {
+            const konfirmasi1 = confirm("PERINGATAN: Apakah Anda yakin ingin mereset seluruh data pemasukan kas, status pembayaran, dan sisa tunggakan pelanggan kembali ke Rp 0?");
+            if (!konfirmasi1) return;
+
+            const konfirmasi2 = prompt("Ketik 'RESET' untuk mengonfirmasi tindakan ini:");
+            if (konfirmasi2 !== "RESET") {
+                alert("Konfirmasi dibatalkan. Data tidak direset.");
+                return;
+            }
+
+            try {
+                for (let p of window.pelangganData) {
+                    await updateDoc(doc(db, "pelanggan", p.docId), {
+                        tagihan: 0,
+                        tagihanBulanIni: 0,
+                        tunggakanLalu: 0,
+                        statusBayar: "Belum Bayar",
+                        riwayatTagihan: []
+                    });
+                }
+                alert("Semua data pemasukan kas, status pembayaran, dan tunggakan berhasil direset ke Rp 0!");
+            } catch (err) {
+                alert("Gagal mereset data: " + err.message);
+            }
+        }
+
         window.switchTab = function(tabName) {
             document.querySelectorAll('.tab-btn').forEach(btn => {
                 btn.classList.remove('border-sky-500', 'text-sky-400');
@@ -1955,7 +1999,6 @@
                 <p class="text-sm font-extrabold text-white pt-1 border-t border-sky-800/50 mt-1">Total Harus Dibayar: Rp ${(p.tagihan || 0).toLocaleString('id-ID')}</p>
             `;
 
-            // Tampilkan daftar semua pilihan bank/e-wallet bagi warga
             const modalRekContainer = document.getElementById('modalListRekeningDisplay');
             if (modalRekContainer) {
                 modalRekContainer.innerHTML = '';

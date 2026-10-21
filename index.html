@@ -557,28 +557,26 @@
 
                     <hr class="border-slate-800">
 
+                    <!-- MODIFIKASI: PENGATURAN REKENING LEBIH DARI 1 -->
                     <div class="space-y-4">
-                        <h4 class="font-bold text-white text-sm"><i class="fa-solid fa-building-columns text-sky-400 mr-2"></i>Pengaturan Rekening ATM & QRIS Perusahaan</h4>
-                        <p class="text-xs text-slate-400">Masukkan data bank tujuan transfer dan QRIS resmi Pamsimas agar otomatis tampil saat warga melakukan pembayaran.</p>
-
-                        <div class="grid sm:grid-cols-3 gap-4 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs">
+                        <div class="flex justify-between items-center">
                             <div>
-                                <label class="block font-semibold text-slate-300 mb-1">Nama Bank / E-Wallet</label>
-                                <input type="text" id="inputBankNama" value="BANK BRI" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
+                                <h4 class="font-bold text-white text-sm"><i class="fa-solid fa-building-columns text-sky-400 mr-2"></i>Pengaturan Rekening Bank & E-Wallet (Lebih dari 1)</h4>
+                                <p class="text-xs text-slate-400">Tambahkan daftar nomor rekening atau QRIS resmi Pamsimas agar warga dapat memilih tujuan transfer.</p>
                             </div>
-                            <div>
-                                <label class="block font-semibold text-slate-300 mb-1">Nomor Rekening / Virtual Account</label>
-                                <input type="text" id="inputBankRek" value="1234-01-005678-50-3" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
-                            </div>
-                            <div>
-                                <label class="block font-semibold text-slate-300 mb-1">Atas Nama Rekening</label>
-                                <input type="text" id="inputBankPemilik" value="PAMSIMAS SUMBER SEJAHTERA" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
-                            </div>
+                            <button onclick="tambahFormRekening()" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow">
+                                <i class="fa-solid fa-plus"></i> Tambah Rekening
+                            </button>
                         </div>
 
-                        <div class="flex justify-end">
-                            <button onclick="simpanRekeningBank()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold">
-                                <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Rekening Perusahaan
+                        <!-- Container Daftar Rekening -->
+                        <div id="listRekeningContainer" class="space-y-3">
+                            <!-- Diisi dinamis via JS -->
+                        </div>
+
+                        <div class="flex justify-end pt-2">
+                            <button onclick="simpanSemuaRekening()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold">
+                                <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Semua Rekening Perusahaan
                             </button>
                         </div>
                     </div>
@@ -597,7 +595,7 @@
     <div id="thermalReceiptPrintArea">
         <div style="text-align: center; font-weight: bold; font-size: 11px;">PAMSIMAS SUMBER SEJAHTERA</div>
         <div style="text-align: center; font-size: 9px;">DUSUN TEMPURAN DESA PAGEREJO</div>
-        <div style="text-align: center; font-size: 8px;">Kec. Kertek, Kab. Wonosobo</div>
+	<div style="text-align: center; font-size: 7px;">Jln. Sindoro Sumbing,Kec. Kertek, Kab. Wonosobo</div>
         <div style="text-align: center; border-bottom: 1px dashed #000; margin: 4px 0;"></div>
         
         <div style="text-align: center; font-weight: bold; font-size: 9px; margin-bottom: 4px;">STRUK BUKTI PEMBAYARAN AIR</div>
@@ -607,7 +605,7 @@
         <div style="border-bottom: 1px dashed #000; margin: 4px 0;"></div>
         <div style="text-align: center; font-size: 8px; margin-top: 4px;">Simpan Struk Ini Sebagai Bukti Pembayaran Sah</div>
         <div style="text-align: center; font-size: 8px; font-weight: bold; margin-top: 2px;">*** TERIMA KASIH ***</div>
-        <div style="text-align: center; font-size: 7px; margin-top: 6px; color: #333;">by: ARANSHA MEDIA</div>
+        <div style="text-align: center; font-size: 7px; margin-top: 6px; color: #333;">by: KPSPAMS SUMBER SEJAHTERA</div>
     </div>
 
     <!-- MODAL SCANNER QR CODE -->
@@ -658,7 +656,7 @@
                     <i class="fa-solid fa-qrcode mr-1"></i> QRIS Pamsimas
                 </button>
                 <button onclick="switchMetodeBayar('atm')" id="btnTabAtm" class="py-2 px-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all text-center">
-                    <i class="fa-solid fa-building-columns mr-1"></i> Transfer ATM
+                    <i class="fa-solid fa-building-columns mr-1"></i> Transfer Bank / ATM
                 </button>
             </div>
 
@@ -668,22 +666,12 @@
                 <p class="text-[11px] text-slate-400">Merchant: PAMSIMAS SUMBER SEJAHTERA</p>
             </div>
 
+            <!-- MODIFIKASI: TAMPILAN DAFTAR REKENING PILIHAN DI MODAL PEMBAYARAN -->
             <div id="contentMetodeAtm" class="hidden space-y-3 text-xs py-2">
-                <div class="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
-                    <div class="flex justify-between">
-                        <span class="text-slate-400">Bank Tujuan:</span>
-                        <span class="font-bold text-white" id="infoBankNameDisplay">BANK BRI</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-400">Nomor Rekening:</span>
-                        <span class="font-bold text-sky-400 font-mono text-sm" id="infoBankRekDisplay">1234-01-005678-50-3</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-slate-400">Atas Nama:</span>
-                        <span class="font-bold text-white" id="infoBankPemilikDisplay">PAMSIMAS SUMBER SEJAHTERA</span>
-                    </div>
+                <p class="text-slate-400 text-center">Silakan pilih salah satu rekening tujuan transfer di bawah ini:</p>
+                <div id="modalListRekeningDisplay" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    <!-- Diisi dinamis via JS -->
                 </div>
-                <p class="text-[11px] text-slate-400 italic">Silakan lakukan transfer sesuai jumlah total tagihan di atas, lalu klik konfirmasi di bawah setelah pembayaran berhasil.</p>
             </div>
 
             <div class="flex gap-2 pt-2 border-t border-slate-800">
@@ -807,7 +795,7 @@
                 <div class="text-left md:text-right text-slate-500 space-y-1">
                     <p>&copy; 2026 KPSPAMS SUMBER SEJAHTERA. All rights reserved.</p>
                     <p class="text-[11px] text-sky-400 font-medium">
-                        by: ARANSHA MEDIA (Percetakan & Digital Printing)[cite: 7]
+                        by: ARANSHA MEDIA (Percetakan & Digital Printing)
                     </p>
                 </div>
             </div>
@@ -861,11 +849,10 @@
             B: { tarif: 1000, beban: 0 },
             C: { tarif: 3500, beban: 10000 }
         };
-        window.rekeningData = {
-            bank: "BANK BRI",
-            rek: "1234-01-005678-50-3",
-            pemilik: "PAMSIMAS SUMBER SEJAHTERA"
-        };
+        // MODIFIKASI: Default rekening berupa array agar bisa menampung lebih dari 1 rekening
+        window.rekeningList = [
+            { bank: "BANK BRI", rek: "1234-01-005678-50-3", pemilik: "PAMSIMAS SUMBER SEJAHTERA" }
+        ];
         window.pengaduanData = [];
 
         window.isAdminLoggedIn = false;
@@ -925,13 +912,15 @@
 
                 const rekSnap = await getDoc(doc(db, "pengaturan", "rekening"));
                 if (rekSnap.exists()) {
-                    window.rekeningData = rekSnap.data();
-                    if (document.getElementById('inputBankNama')) {
-                        document.getElementById('inputBankNama').value = window.rekeningData.bank;
-                        document.getElementById('inputBankRek').value = window.rekeningData.rek;
-                        document.getElementById('inputBankPemilik').value = window.rekeningData.pemilik;
+                    const data = rekSnap.data();
+                    // Mendukung format lama (single object) atau format baru (array list)
+                    if (data.list && Array.isArray(data.list)) {
+                        window.rekeningList = data.list;
+                    } else if (data.bank) {
+                        window.rekeningList = [data];
                     }
                 }
+                renderFormRekeningList();
             } catch (err) {
                 console.error("Gagal memuat pengaturan:", err);
             }
@@ -952,7 +941,7 @@
                 renderMeterOptions();
                 renderPembayaranTable();
                 updateFinancialMetrics();
-                hitungDebetAirOtomatis(); // Kalkulasi debet air otomatis
+                hitungDebetAirOtomatis();
                 previewLaporanBulanan();
             });
 
@@ -989,7 +978,6 @@
                 }
             });
 
-            // Konversi m3 per bulan ke Liter per detik (30 hari x 86.400 detik = 2.592.000 detik)
             const totalLiter = totalM3BulanIni * 1000;
             const detikDalamSebulan = 30 * 24 * 3600; 
             const debetLPS = (totalLiter / detikDalamSebulan).toFixed(2);
@@ -1673,14 +1661,82 @@
             }
         }
 
-        window.simpanRekeningBank = async function() {
-            window.rekeningData.bank = document.getElementById('inputBankNama').value.trim();
-            window.rekeningData.rek = document.getElementById('inputBankRek').value.trim();
-            window.rekeningData.pemilik = document.getElementById('inputBankPemilik').value.trim();
+        // ==========================================
+        // FITUR BARU: MANAJEMEN BANYAK REKENING (> 1)
+        // ==========================================
+        window.renderFormRekeningList = function() {
+            const container = document.getElementById('listRekeningContainer');
+            if (!container) return;
+            container.innerHTML = '';
 
+            window.rekeningList.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = "grid sm:grid-cols-12 gap-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs items-end";
+                div.innerHTML = `
+                    <div class="sm:col-span-3">
+                        <label class="block font-semibold text-slate-300 mb-1">Bank / E-Wallet #${index + 1}</label>
+                        <input type="text" id="bankName_${index}" value="${item.bank || ''}" placeholder="Cth: BANK BRI" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
+                    </div>
+                    <div class="sm:col-span-4">
+                        <label class="block font-semibold text-slate-300 mb-1">Nomor Rekening / VA</label>
+                        <input type="text" id="bankRek_${index}" value="${item.rek || ''}" placeholder="Cth: 1234-01-005678" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
+                    </div>
+                    <div class="sm:col-span-4">
+                        <label class="block font-semibold text-slate-300 mb-1">Atas Nama</label>
+                        <input type="text" id="bankPemilik_${index}" value="${item.pemilik || ''}" placeholder="Cth: PAMSIMAS" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
+                    </div>
+                    <div class="sm:col-span-1 flex justify-end">
+                        <button type="button" onclick="hapusFormRekening(${index})" class="w-full sm:w-auto px-3 py-2.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg transition-colors flex items-center justify-center">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        window.tambahFormRekening = function() {
+            // Ambil data terbaru dari input yang sudah diketik user terlebih dahulu
+            gatherRekeningInputFromDOM();
+            window.rekeningList.push({ bank: "", rek: "", pemilik: "PAMSIMAS SUMBER SEJAHTERA" });
+            renderFormRekeningList();
+        }
+
+        window.hapusFormRekening = function(index) {
+            gatherRekeningInputFromDOM();
+            if (window.rekeningList.length <= 1) {
+                alert("Minimal harus ada 1 data rekening pembayaran!");
+                return;
+            }
+            window.rekeningList.splice(index, 1);
+            renderFormRekeningList();
+        }
+
+        function gatherRekeningInputFromDOM() {
+            const newList = [];
+            window.rekeningList.forEach((item, index) => {
+                const b = document.getElementById(`bankName_${index}`);
+                const r = document.getElementById(`bankRek_${index}`);
+                const p = document.getElementById(`bankPemilik_${index}`);
+                if (b && r && p) {
+                    newList.push({
+                        bank: b.value.trim(),
+                        rek: r.value.trim(),
+                        pemilik: p.value.trim()
+                    });
+                }
+            });
+            if (newList.length > 0) {
+                window.rekeningList = newList;
+            }
+        }
+
+        window.simpanSemuaRekening = async function() {
+            gatherRekeningInputFromDOM();
             try {
-                await setDoc(doc(db, "pengaturan", "rekening"), window.rekeningData);
-                alert("Data rekening perusahaan berhasil disimpan permanen ke Firebase Firestore!");
+                // Simpan dalam format list ke Firebase
+                await setDoc(doc(db, "pengaturan", "rekening"), { list: window.rekeningList });
+                alert("Semua data rekening perusahaan berhasil disimpan permanen ke Firebase Firestore!");
             } catch (err) {
                 alert("Gagal menyimpan rekening: " + err.message);
             }
@@ -1906,13 +1962,31 @@
                 <p class="text-sm font-extrabold text-white pt-1 border-t border-sky-800/50 mt-1">Total Harus Dibayar: Rp ${(p.tagihan || 0).toLocaleString('id-ID')}</p>
             `;
 
-            document.getElementById('infoBankNameDisplay').innerText = window.rekeningData.bank;
-            document.getElementById('infoBankRekDisplay').innerText = window.rekeningData.rek;
-            document.getElementById('infoBankPemilikDisplay').innerText = window.rekeningData.pemilik;
+            // Render list semua rekening di modal pembayaran
+            const modalRekContainer = document.getElementById('modalListRekeningDisplay');
+            if (modalRekContainer) {
+                modalRekContainer.innerHTML = '';
+                window.rekeningList.forEach((rekObj, idx) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = "p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1";
+                    itemDiv.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-white">${rekObj.bank || 'Bank'}</span>
+                            <span class="text-[10px] bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded font-semibold">Pilihan #${idx + 1}</span>
+                        </div>
+                        <div class="flex justify-between font-mono text-sky-400 font-bold text-sm">
+                            <span>${rekObj.rek || '-'}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-400">Atas Nama: ${rekObj.pemilik || '-'}</div>
+                    `;
+                    modalRekContainer.appendChild(itemDiv);
+                });
+            }
 
             const qrisContainer = document.getElementById('qrisCodeContainer');
             qrisContainer.innerHTML = "";
-            const qrisPayload = `PAMSIMAS-PAY|ID:${p.id}|NAMA:${p.nama}|BULAN:${p.bulanTagihan || 'Oktober 2026'}|TOTAL:${p.tagihan}|BANK:${window.rekeningData.bank}|REK:${window.rekeningData.rek}`;
+            const primaryBank = window.rekeningList[0] || { bank: 'BANK BRI', rek: '-' };
+            const qrisPayload = `PAMSIMAS-PAY|ID:${p.id}|NAMA:${p.nama}|BULAN:${p.bulanTagihan || 'Oktober 2026'}|TOTAL:${p.tagihan}|BANK:${primaryBank.bank}|REK:${primaryBank.rek}`;
             new QRCode(qrisContainer, {
                 text: qrisPayload,
                 width: 140,

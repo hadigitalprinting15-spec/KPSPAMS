@@ -557,26 +557,24 @@
 
                     <hr class="border-slate-800">
 
-                    <!-- MODIFIKASI: PENGATURAN REKENING LEBIH DARI 1 -->
+                    <!-- PERBAIKAN UTAMA: TAMPILAN DAN MANAJEMEN MULTI REKENING PERUSAHAAN -->
                     <div class="space-y-4">
-                        <div class="flex justify-between items-center">
+                        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                             <div>
-                                <h4 class="font-bold text-white text-sm"><i class="fa-solid fa-building-columns text-sky-400 mr-2"></i>Pengaturan Rekening Bank & E-Wallet (Lebih dari 1)</h4>
-                                <p class="text-xs text-slate-400">Tambahkan daftar nomor rekening atau QRIS resmi Pamsimas agar warga dapat memilih tujuan transfer.</p>
+                                <h4 class="font-bold text-white text-sm"><i class="fa-solid fa-building-columns text-sky-400 mr-2"></i>Pengaturan Rekening ATM & QRIS Perusahaan</h4>
+                                <p class="text-xs text-slate-400">Anda dapat menambah lebih dari 1 rekening bank/e-wallet untuk pilihan pembayaran warga.</p>
                             </div>
-                            <button onclick="tambahFormRekening()" class="px-3 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow">
-                                <i class="fa-solid fa-plus"></i> Tambah Rekening
+                            <button type="button" onclick="tambahFormRekening()" class="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow">
+                                <i class="fa-solid fa-plus"></i> Tambah Rekening Baru
                             </button>
                         </div>
 
-                        <!-- Container Daftar Rekening -->
-                        <div id="listRekeningContainer" class="space-y-3">
-                            <!-- Diisi dinamis via JS -->
-                        </div>
+                        <!-- LIST CONTAINERS REKENING -->
+                        <div id="listRekeningContainer" class="space-y-3"></div>
 
                         <div class="flex justify-end pt-2">
-                            <button onclick="simpanSemuaRekening()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-semibold">
-                                <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Semua Rekening Perusahaan
+                            <button type="button" onclick="simpanSemuaRekening()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg">
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan Semua Rekening Perusahaan
                             </button>
                         </div>
                     </div>
@@ -595,7 +593,7 @@
     <div id="thermalReceiptPrintArea">
         <div style="text-align: center; font-weight: bold; font-size: 11px;">PAMSIMAS SUMBER SEJAHTERA</div>
         <div style="text-align: center; font-size: 9px;">DUSUN TEMPURAN DESA PAGEREJO</div>
-        <div style="text-align: center; font-size: 8px;">Kec. Kertek, Kab. Wonosobo</div>
+        <div style="text-align: center; font-size: 8px;">Jln. Sindoro Sumbing, Kec. Kertek, Kab. Wonosobo</div>
         <div style="text-align: center; border-bottom: 1px dashed #000; margin: 4px 0;"></div>
         
         <div style="text-align: center; font-weight: bold; font-size: 9px; margin-bottom: 4px;">STRUK BUKTI PEMBAYARAN AIR</div>
@@ -605,7 +603,7 @@
         <div style="border-bottom: 1px dashed #000; margin: 4px 0;"></div>
         <div style="text-align: center; font-size: 8px; margin-top: 4px;">Simpan Struk Ini Sebagai Bukti Pembayaran Sah</div>
         <div style="text-align: center; font-size: 8px; font-weight: bold; margin-top: 2px;">*** TERIMA KASIH ***</div>
-        <div style="text-align: center; font-size: 7px; margin-top: 6px; color: #333;">by: ARANSHA MEDIA</div>
+        <div style="text-align: center; font-size: 7px; margin-top: 6px; color: #333;">by: KPSPAMS SUMBER SEJAHTERA</div>
     </div>
 
     <!-- MODAL SCANNER QR CODE -->
@@ -666,12 +664,9 @@
                 <p class="text-[11px] text-slate-400">Merchant: PAMSIMAS SUMBER SEJAHTERA</p>
             </div>
 
-            <!-- MODIFIKASI: TAMPILAN DAFTAR REKENING PILIHAN DI MODAL PEMBAYARAN -->
             <div id="contentMetodeAtm" class="hidden space-y-3 text-xs py-2">
-                <p class="text-slate-400 text-center">Silakan pilih salah satu rekening tujuan transfer di bawah ini:</p>
-                <div id="modalListRekeningDisplay" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    <!-- Diisi dinamis via JS -->
-                </div>
+                <p class="text-slate-400 text-center">Pilih salah satu rekening tujuan transfer berikut:</p>
+                <div id="modalListRekeningDisplay" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
             </div>
 
             <div class="flex gap-2 pt-2 border-t border-slate-800">
@@ -795,7 +790,7 @@
                 <div class="text-left md:text-right text-slate-500 space-y-1">
                     <p>&copy; 2026 KPSPAMS SUMBER SEJAHTERA. All rights reserved.</p>
                     <p class="text-[11px] text-sky-400 font-medium">
-                        by: ARANSHA MEDIA (Percetakan & Digital Printing)
+                        Developed by: ARANSHA MEDIA
                     </p>
                 </div>
             </div>
@@ -849,12 +844,13 @@
             B: { tarif: 1000, beban: 0 },
             C: { tarif: 3500, beban: 10000 }
         };
-        // MODIFIKASI: Default rekening berupa array agar bisa menampung lebih dari 1 rekening
+        
+        // ARRAY DAFTAR REKENING (> 1 REKENING)
         window.rekeningList = [
             { bank: "BANK BRI", rek: "1234-01-005678-50-3", pemilik: "PAMSIMAS SUMBER SEJAHTERA" }
         ];
-        window.pengaduanData = [];
 
+        window.pengaduanData = [];
         window.isAdminLoggedIn = false;
         window.isAdminView = false;
         window.activePaymentIndex = -1;
@@ -913,11 +909,10 @@
                 const rekSnap = await getDoc(doc(db, "pengaturan", "rekening"));
                 if (rekSnap.exists()) {
                     const data = rekSnap.data();
-                    // Mendukung format lama (single object) atau format baru (array list)
-                    if (data.list && Array.isArray(data.list)) {
+                    if (data.list && Array.isArray(data.list) && data.list.length > 0) {
                         window.rekeningList = data.list;
                     } else if (data.bank) {
-                        window.rekeningList = [data];
+                        window.rekeningList = [{ bank: data.bank, rek: data.rek, pemilik: data.pemilik }];
                     }
                 }
                 renderFormRekeningList();
@@ -967,7 +962,6 @@
             }
         }
 
-        // FUNGSI KALKULASI DEBET AIR RATA-RATA OTOMATIS BERDASARKAN PEMAKAIAN (m³)
         function hitungDebetAirOtomatis() {
             let totalM3BulanIni = 0;
 
@@ -1662,7 +1656,7 @@
         }
 
         // ==========================================
-        // FITUR BARU: MANAJEMEN BANYAK REKENING (> 1)
+        // FITUR PENGATURAN BANYAK REKENING (> 1)
         // ==========================================
         window.renderFormRekeningList = function() {
             const container = document.getElementById('listRekeningContainer');
@@ -1674,7 +1668,7 @@
                 div.className = "grid sm:grid-cols-12 gap-3 bg-slate-950 p-4 rounded-xl border border-slate-800 text-xs items-end";
                 div.innerHTML = `
                     <div class="sm:col-span-3">
-                        <label class="block font-semibold text-slate-300 mb-1">Bank / E-Wallet #${index + 1}</label>
+                        <label class="block font-semibold text-slate-300 mb-1">Nama Bank / E-Wallet #${index + 1}</label>
                         <input type="text" id="bankName_${index}" value="${item.bank || ''}" placeholder="Cth: BANK BRI" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
                     </div>
                     <div class="sm:col-span-4">
@@ -1682,11 +1676,11 @@
                         <input type="text" id="bankRek_${index}" value="${item.rek || ''}" placeholder="Cth: 1234-01-005678" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
                     </div>
                     <div class="sm:col-span-4">
-                        <label class="block font-semibold text-slate-300 mb-1">Atas Nama</label>
-                        <input type="text" id="bankPemilik_${index}" value="${item.pemilik || ''}" placeholder="Cth: PAMSIMAS" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
+                        <label class="block font-semibold text-slate-300 mb-1">Atas Nama Rekening</label>
+                        <input type="text" id="bankPemilik_${index}" value="${item.pemilik || ''}" placeholder="Cth: PAMSIMAS SUMBER SEJAHTERA" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-semibold">
                     </div>
                     <div class="sm:col-span-1 flex justify-end">
-                        <button type="button" onclick="hapusFormRekening(${index})" class="w-full sm:w-auto px-3 py-2.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg transition-colors flex items-center justify-center">
+                        <button type="button" onclick="hapusFormRekening(${index})" title="Hapus Rekening Ini" class="w-full sm:w-auto px-3 py-2.5 bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white rounded-lg transition-colors flex items-center justify-center">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     </div>
@@ -1696,7 +1690,6 @@
         }
 
         window.tambahFormRekening = function() {
-            // Ambil data terbaru dari input yang sudah diketik user terlebih dahulu
             gatherRekeningInputFromDOM();
             window.rekeningList.push({ bank: "", rek: "", pemilik: "PAMSIMAS SUMBER SEJAHTERA" });
             renderFormRekeningList();
@@ -1705,7 +1698,7 @@
         window.hapusFormRekening = function(index) {
             gatherRekeningInputFromDOM();
             if (window.rekeningList.length <= 1) {
-                alert("Minimal harus ada 1 data rekening pembayaran!");
+                alert("Minimal harus terdapat 1 data rekening perusahaan!");
                 return;
             }
             window.rekeningList.splice(index, 1);
@@ -1734,7 +1727,6 @@
         window.simpanSemuaRekening = async function() {
             gatherRekeningInputFromDOM();
             try {
-                // Simpan dalam format list ke Firebase
                 await setDoc(doc(db, "pengaturan", "rekening"), { list: window.rekeningList });
                 alert("Semua data rekening perusahaan berhasil disimpan permanen ke Firebase Firestore!");
             } catch (err) {
@@ -1760,6 +1752,8 @@
 
             if (tabName === 'laporan') {
                 previewLaporanBulanan();
+            } else if (tabName === 'tarifAdmin') {
+                renderFormRekeningList();
             }
         }
 
@@ -1877,7 +1871,6 @@
             });
         }
 
-        // FUNGSI CETAK STRUK THERMAL / LOKAL DENGAN JAM 24-JAM
         window.cetakStrukThermal = function(docId) {
             const p = window.pelangganData.find(item => item.docId === docId);
             if (!p) return;
@@ -1962,7 +1955,7 @@
                 <p class="text-sm font-extrabold text-white pt-1 border-t border-sky-800/50 mt-1">Total Harus Dibayar: Rp ${(p.tagihan || 0).toLocaleString('id-ID')}</p>
             `;
 
-            // Render list semua rekening di modal pembayaran
+            // Tampilkan daftar semua pilihan bank/e-wallet bagi warga
             const modalRekContainer = document.getElementById('modalListRekeningDisplay');
             if (modalRekContainer) {
                 modalRekContainer.innerHTML = '';
